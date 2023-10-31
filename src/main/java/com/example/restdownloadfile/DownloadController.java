@@ -8,10 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StreamUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -91,6 +88,31 @@ public class DownloadController {
             StreamUtils.copy(fileBytes, zipOut);
             zipOut.closeEntry();
         }
+        zipOut.finish();
+        zipOut.close();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + zipFileName + "\"")
+                .body(byteArrayOutputStream.toByteArray());
+    }
+
+    @PostMapping(value = "/", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity zipping2(@RequestBody FilenameDTO filename) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+        String zipFileName = LocalDate.now().format(formatter) + ".zip";
+
+        ZipOutputStream zipOut = new ZipOutputStream(byteArrayOutputStream);
+
+        for (String file : filename.getFiles()) {
+            FileSystemResource resource = new FileSystemResource(fileBasePath + file);
+            byte[] fileBytes = resource.getInputStream().readAllBytes();
+            ZipEntry zipEntry = new ZipEntry(Objects.requireNonNull(resource.getFilename()));
+            zipOut.putNextEntry(zipEntry);
+            StreamUtils.copy(fileBytes, zipOut);
+            zipOut.closeEntry();
+        }
+
         zipOut.finish();
         zipOut.close();
 
