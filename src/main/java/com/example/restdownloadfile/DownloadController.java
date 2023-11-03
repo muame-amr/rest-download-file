@@ -1,5 +1,9 @@
 package com.example.restdownloadfile;
 
+import org.apache.pdfbox.io.MemoryUsageSetting;
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -13,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -119,5 +124,43 @@ public class DownloadController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + zipFileName + "\"")
                 .body(byteArrayOutputStream.toByteArray());
+    }
+
+    @PostMapping(value = "/pdf")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public ResponseEntity<ByteArrayResource> mergePdfs(@RequestBody FilenameDTO filename) throws IOException {
+        // List of PDF files to merge
+
+        PDFMergerUtility pdfMerger = new PDFMergerUtility();
+
+        // Create an output stream for the merged PDF
+        ByteArrayOutputStream mergedPDFOutputStream = new ByteArrayOutputStream();
+
+        for (String file : filename.getFiles()) {
+            pdfMerger.addSource(new File(fileBasePath + file + ".pdf"));
+        }
+
+        pdfMerger.setDestinationStream(mergedPDFOutputStream);
+
+        // Merge the PDFs
+        pdfMerger.mergeDocuments(MemoryUsageSetting.setupMainMemoryOnly());
+
+        String pdfName = filename.getCourt() + "_"
+                + filename.getFilterDate().getMonth() + "_"
+                + filename.getFilterDate().getYear()
+                + "_Part_" + filename.getPage() + ".pdf";
+
+        System.out.println(pdfName);
+
+        // Prepare the response
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", pdfName);
+
+        return ResponseEntity
+                .ok()
+                .headers(headers)
+                .contentLength(mergedPDFOutputStream.size())
+                .body(new ByteArrayResource(mergedPDFOutputStream.toByteArray()));
     }
 }
